@@ -13,10 +13,9 @@ However, B2902A is suggested (and used) here.
 
 All programs use *Standard Commands for Programmable Instruments (SCPI)* protocol to communicate with the SMU.
 
-Extra information for programming these devices can be found from:
+Extra information for programming these devices with SCPI can be found from [B2902A][3] and [B2962A][4].
 
-* [B2902A][3]
-* [B2962A][4]
+
 
 
 [1]: https://www.keysight.com/en/pd-1983585-pn-B2902A/precision-source-measure-unit-2-ch-100-fa-210-v-3-a-dc-105-a-pulse?cc=DE&lc=ger
