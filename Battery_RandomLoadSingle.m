@@ -16,7 +16,7 @@ ylabel('Voltage [V]')
 grid on
 subplot(2,1,2)
 Current_Fig = animatedline('LineStyle','none','Color','b','Marker','.');
-ylim([-36e-3 155e-6]);
+ylim([-36e-3 155e-6]); % limitation according to the signal range
 ylabel('Current [A]')
 xlabel('Time [s]')
 grid on
@@ -40,7 +40,7 @@ fprintf(SMU,':FORM:ELEM:SENS VOLT,CURR,TIME'); % store only voltage, current val
 fprintf(SMU,':TRIG:ACQ:SOUR TIM'); % triggers are time based
 fprintf(SMU,':TRIG:ACQ:COUN INF'); % Number of triggers
 fprintf(SMU,sprintf(':TRIG:ACQ:TIM %d', Battery.Ts)); % setting the sampling time
-fprintf(SMU,sprintf(':TRIG:TRAN:DEL %d', 0.1*Battery.Ts));
+% fprintf(SMU,sprintf(':TRIG:TRAN:DEL %d', 0.1*Battery.Ts));
 
 % ------- Trace buffer -------
 fprintf(SMU,':TRAC1:FEED:CONT NEV'); % Disable write Buffer (cant be cleared in next mode)
@@ -143,12 +143,4 @@ Main = orderfields(Main, {'Battery', 'VI', 'Error', 'TStart', 'TEnd'});
 Date_Str = datestr(Main.TEnd,'yymmdd_HHMM');
 Main_Name = strcat('M',Date_Str,'_B',num2str(Battery.Item),'_RA');
 
-if ~exist(strcat('Data\',Str_Add), 'dir')
-    mkdir(strcat('Data\',Str_Add))
-end
-if ~exist(strcat('Fig\',Str_Add), 'dir')
-    mkdir(strcat('Fig\',Str_Add))
-end
-
-SaveWithNumber(strcat('Data\',Str_Add,'\',Main_Name), Main)
-savefig(strcat('Fig\',Str_Add,'\',Main_Name))
+SaveM([Str_Add,filesep,Main_Name], Main);
