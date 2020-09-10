@@ -1,5 +1,5 @@
-%% This function is for application and measurement of a continuous current
-%  Current can be in both directions
+% This function applies a constant current in the desired direction
+% this process follows till one of the end points reached
 function Main = Battery_CC(SMU_Name, Battery, Direction, Rate, Ts, Str_Add)
 
 C = Battery.Capacity;
@@ -55,7 +55,7 @@ fprintf(SMU,':FORM:ELEM:SENS VOLT,CURR,TIME'); % store only voltage, current val
 fprintf(SMU,':TRIG:ACQ:SOUR TIM'); % triggers are time based
 fprintf(SMU,':TRIG:ACQ:COUN INF'); % Number of triggers
 fprintf(SMU,sprintf(':TRIG:ACQ:TIM %d', Ts)); % setting the sampling time
-fprintf(SMU,sprintf(':TRIG:TRAN:DEL %d', 0.1*Battery.Ts));
+% fprintf(SMU,sprintf(':TRIG:TRAN:DEL %d', 0.1*Ts));
 % ------- Trace buffer -------
 fprintf(SMU,':TRAC1:FEED:CONT NEV'); % Disable write Buffer (cant be cleared in next mode)
 fprintf(SMU,':TRAC1:CLE'); % Clears trace buffer
@@ -100,7 +100,6 @@ while ~Main_Complete % as long as the cycle is not complete do:
         
         if (Current_Direction == -1) && (Data_Temp(1) <= Final_Voltage) % for a discharge cycle
             Main_Complete = true;
-            Data_Temp(1)
         end
         
         if (Current_Direction == 1) && (Data_Temp(1) >= Final_Voltage) % for a charge cycle
@@ -126,12 +125,4 @@ Main = orderfields(Main, {'Battery', 'VI', 'Error', 'TStart', 'TEnd'});
 Date_Str = datestr(Main.TEnd,'yymmdd_HHMM');
 Main_Name = strcat('M',Date_Str,'_B',num2str(Battery.Item),'_CC_',Name_Extra,'_',num2str(abs(floor(1000*Desired_Current))),'mA');
 
-if ~exist(strcat('Data\',Str_Add), 'dir')
-    mkdir(strcat('Data\',Str_Add))
-end
-if ~exist(strcat('Fig\',Str_Add), 'dir')
-    mkdir(strcat('Fig\',Str_Add))
-end
-
-SaveWithNumber(strcat('Data\',Str_Add,'\',Main_Name), Main)
-savefig(strcat('Fig\',Str_Add,'\',Main_Name))
+SaveM([Str_Add,filesep,Main_Name], Main);
