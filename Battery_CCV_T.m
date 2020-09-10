@@ -1,4 +1,7 @@
-function Main = Battery_CCV(SMU_Name, Battery, Direction, Rate, Ts, Wait_Time, Str_Add)
+% This function applies the desired current till the end point is reached
+% afterwards it continoue as a voltage source for the specified time
+% CAUTION: <<<<<<< Use only for charging >>>>>>>
+function Main = Battery_CCV_T(SMU_Name, Battery, Direction, Rate, Ts, Wait_Time, Str_Add)
 % Use this function only for fully charging
 C = Battery.Capacity;
 VMax = Battery.VMax;
@@ -25,7 +28,7 @@ end
 close all
 figure
 subplot(2,1,1)
-title('Constant Current Process with steady end voltage')
+title('Constant Current Process with steady end voltage (Time)')
 Voltage_Fig = animatedline('LineStyle','none','Color','b','Marker','.');
 ylabel('Voltage [V]')
 grid on
@@ -53,7 +56,7 @@ fprintf(SMU,':FORM:ELEM:SENS VOLT,CURR,TIME'); % store only voltage, current val
 fprintf(SMU,':TRIG:ACQ:SOUR TIM'); % triggers are time based
 fprintf(SMU,':TRIG:ACQ:COUN INF'); % Number of triggers
 fprintf(SMU,sprintf(':TRIG:ACQ:TIM %d', Ts)); % setting the sampling time
-fprintf(SMU,sprintf(':TRIG:TRAN:DEL %d', 0.1*Battery.Ts));
+% fprintf(SMU,sprintf(':TRIG:TRAN:DEL %d', 0.1*Ts));
 % ------- Trace buffer -------
 fprintf(SMU,':TRAC1:FEED:CONT NEV'); % Disable write Buffer (cant be cleared in next mode)
 fprintf(SMU,':TRAC1:CLE'); % Clears trace buffer
@@ -64,7 +67,7 @@ fprintf(SMU,':OUTPUT1 ON'); % turn on the channel
 fprintf(SMU,':INIT (@1)'); % trigger
 Main.TStart = datetime; % start time of the main
 
-disp(strcat('A', {' '}, Direction, ' CCV process STARTED at:', {' '}, datestr(Main.TStart)))
+disp(strcat('A', {' '}, Direction, ' CCV_T process STARTED at:', {' '}, datestr(Main.TStart)))
 
 tic
 while toc <= 100*Ts % Measure first 100 samples with zero current
@@ -122,7 +125,7 @@ end
 
 fprintf(SMU,':ABOR:ACQ (@1)'); % abort data collection
 Main.TEnd = datetime;
-disp(strcat(Direction, ' CCV process FINISHED at:', {' '}, datestr(Main.TEnd)))
+disp(strcat(Direction, ' CCV_T process FINISHED at:', {' '}, datestr(Main.TEnd)))
 fprintf(SMU,':OUTP1 OFF');
 
 Main.Error = query(SMU,':SYST:ERR:ALL?'); % get errors
@@ -134,14 +137,6 @@ Main.Battery = Battery;
 Main = orderfields(Main, {'Battery', 'VI', 'Error', 'TStart', 'TEnd'});
 
 Date_Str = datestr(Main.TEnd,'yymmdd_HHMM');
-Main_Name = strcat('M',Date_Str,'_B',num2str(Battery.Item),'_CCV_',Name_Extra,'_',num2str(abs(floor(1000*Desired_Current))),'mA');
+Main_Name = strcat('M',Date_Str,'_B',num2str(Battery.Item),'_CCV_T_',Name_Extra,'_',num2str(abs(floor(1000*Desired_Current))),'mA');
 
-if ~exist(strcat('Data\',Str_Add), 'dir')
-    mkdir(strcat('Data\',Str_Add))
-end
-if ~exist(strcat('Fig\',Str_Add), 'dir')
-    mkdir(strcat('Fig\',Str_Add))
-end
-
-SaveWithNumber(strcat('Data\',Str_Add,'\',Main_Name), Main)
-savefig(strcat('Fig\',Str_Add,'\',Main_Name))
+SaveM([Str_Add,filesep,Main_Name], Main);
