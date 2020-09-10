@@ -1,16 +1,13 @@
 % This is to test the battery under a random load signal
 % each step value is randomly selected and will remain for a random
 % duration ot time before the next step
-close all
-
-%% building the battery structure for the storage of the information
-Battery = BatteryMaker(2);
+function Battery_RandomLoadTest(Battery)
 %% Setting the Measurement device
 SMU_Name = 'B2902A';
 %% storage folder
-Str_Add = 'RandomLoad';
+Str_Add = ['Data',filesep,'Evaluation',filesep,'RandomLoad'];
 %% bring battery to the standard point
-Battery_Neutralize(SMU_Name, Battery, Str_Add); 
+Battery_Initialize(SMU_Name, Battery, Str_Add, 'Full'); 
 %% Build random profile
 PassedIn = 10e3; % Number of steps in 1 round
 No_Iterations = 60; % Number of iterations
