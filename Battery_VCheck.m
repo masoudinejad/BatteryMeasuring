@@ -1,3 +1,4 @@
+% This function checks the OCV of the battery
 function VoltageLevel = Battery_VCheck(SMU_Name)
 Ts = 0.01;
 %% prepare online plotting
@@ -71,4 +72,5 @@ pause(1)
 VI = Bat_SMU_Data_Import(SMU);
 fclose(SMU); % End of work at the SMU -------------------------------------
 
-VoltageLevel = median(VI.V);
+% VoltageLevel = median(VI.V);
+VoltageLevel = trimmean(VI.V,20);
