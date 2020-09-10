@@ -1,9 +1,34 @@
-function [Main,End_Reached] = Battery_Step_Rest(SMU_Name, Battery, Direction, Current_level, Str_Add)
+function [Main, End_Reached, Ready4Break, VFinish] = Battery_Step_Rest(SMU_Name, Battery, Direction, Current_level, Str_Add, LastVFinish)
 %% initialisations
 Init_Time = 60; % initial time before starting application of steps
-Time_level = 60*15; % duration of the step application 
-Rest_Time = 4000;% 1 Rest time to stabilise the battery after the step
-Battery.Ts = (Init_Time+Time_level+Rest_Time)/90000; % ~77 ms
+
+BreakPoint = Battery.VBreak; % this is the limit when afterwards curve will break soon
+BP1 = BreakPoint - 0.25*(BreakPoint-Battery.VMin);
+BP2 = BreakPoint - 0.5*(BreakPoint-Battery.VMin);
+% define the duration of rest time
+if LastVFinish >= BreakPoint + 0.5*(Battery.VMax - BreakPoint)
+    Time_level = 60*30; % duration of the step application
+    Rest_Time = 5000; % Rest time to stabilise the battery after the step
+    FinalRestTime = 10*60;
+elseif and(LastVFinish >= BreakPoint, LastVFinish < BreakPoint + 0.5*(Battery.VMax - BreakPoint))
+    Time_level = 60*30; % duration of the step application
+    Rest_Time = 5000; % Rest time to stabilise the battery after the step
+    FinalRestTime = 15*60;
+elseif and(LastVFinish < BreakPoint, LastVFinish >= BP1)
+    Time_level = 60*20; % duration of the step application
+    Rest_Time = 5000;
+    FinalRestTime = 30*60;
+elseif and(LastVFinish < BP1, LastVFinish >= BP2)
+    Time_level = 60*15; % duration of the step application
+    Rest_Time = 5000;
+    FinalRestTime = 40*60;
+elseif LastVFinish < BP2
+    Time_level = 60*10; % duration of the step application
+    Rest_Time = 5000;
+    FinalRestTime = 60*60;
+end
+% define the sample time
+Battery.Ts = (Init_Time + Time_level + Rest_Time)/90000;
 
 switch  Direction
     case 'charge'
@@ -50,7 +75,7 @@ fprintf(SMU,':FORM:ELEM:SENS VOLT,CURR,TIME'); % store only voltage, current val
 fprintf(SMU,':TRIG:ACQ:SOUR TIM'); % triggers are time based
 fprintf(SMU,':TRIG:ACQ:COUN INF'); % Number of triggers
 fprintf(SMU,sprintf(':TRIG:ACQ:TIM %d', Battery.Ts)); % setting the sampling time
-fprintf(SMU,sprintf(':TRIG:TRAN:DEL %d', 0.1*Battery.Ts));
+% fprintf(SMU,sprintf(':TRIG:TRAN:DEL %d', 0.1*Battery.Ts));
 % ------- Trace buffer -------
 fprintf(SMU,':TRAC1:FEED:CONT NEV'); % Disable write Buffer (cant be cleared in next mode)
 fprintf(SMU,':TRAC1:CLE'); % Clears trace buffer
@@ -83,6 +108,7 @@ end
 fprintf(SMU,sprintf(':SOUR1:CURR %d',Current_Direction*abs(Current_level))); % setting the current value
 disp(strcat('Application of step STARTED at:', {' '}, datestr(datetime)))
 End_Reached = false;
+Ready4Break = false;
 tic
 while toc <= Time_level
     Points = query(SMU,':TRAC1:POIN:ACT?');
@@ -108,6 +134,10 @@ while toc <= Time_level
             Remained_Time = Time_level - toc; % to use this time as extra rest
             break % stop discharging
         end
+        
+        if strcmp(Direction,'discharge') && Data_Temp(1)<= Battery.VBreak
+            Ready4Break = true; % the limit voltage is reached
+        end
     end
     pause(Battery.Ts) % wait for the duration of one sample
 end
@@ -115,7 +145,7 @@ end
 fprintf(SMU,sprintf(':SOUR1:CURR %d',0)); % setting the current value to zero
 fprintf(SMU,':SOUR1:CURR:RANG:AUTO:LLIM MIN'); % high accuracy measuring
 disp(strcat('Application of step FINISHED at:', {' '}, datestr(datetime)))
-if End_Reached 
+if End_Reached
     Rest_Time = Rest_Time + Remained_Time; % increase the rest time to the max possible
 end
 tic
@@ -144,18 +174,14 @@ pause(1)
 Main.VI = Bat_SMU_Data_Import(SMU);
 fclose(SMU); % End of work at the SMU -------------------------------------
 
+VFinish = trimmean(Main.VI.V(end-100:end),10); % find the end voltage
 Main.Battery = Battery;
 Main = orderfields(Main, {'Battery', 'VI', 'Error', 'TStart', 'TEnd'});
 
 Date_Str = datestr(Main.TEnd,'yymmdd_HHMM');
 Main_Name = strcat('M',Date_Str,'_B',num2str(Battery.Item),'_SS_',Name_Extra,'_',num2str(abs(floor(1000*Current_level))),'mA');
 
-if ~exist(strcat('Data\',Str_Add), 'dir')
-    mkdir(strcat('Data\',Str_Add))
-end
-if ~exist(strcat('Fig\',Str_Add), 'dir')
-    mkdir(strcat('Fig\',Str_Add))
-end
+SaveM([Str_Add,filesep,Main_Name], Main)
 
-SaveWithNumber(strcat('Data\',Str_Add,'\',Main_Name), Main)
-savefig(strcat('Fig\',Str_Add,'\',Main_Name))
+disp(strcat('Battery went to the deep rest at:', {' '}, datestr(datetime)))
+pause(FinalRestTime)
